@@ -62,6 +62,34 @@ function stepStatusName(status: number): string {
   return FLOW_STEP_STATUS[status] ?? `Unknown (${status})`
 }
 
+// Terminal step statuses (logged once with a result icon).
+const TERMINAL_STEP_STATUSES = new Set([0, 1, 2, 3, 100, 201])
+// Active step statuses (logged once when the step first starts).
+const ACTIVE_STEP_STATUSES = new Set([91, 92, 202])
+
+// Emoji icons carry the green/red semantics without ANSI color codes, so they
+// render correctly in CI logs (GitHub/Azure) and any shell that shows emoji.
+function stepIcon(status: number): string {
+  switch (status) {
+    case 0:
+      return '✅'
+    case 1:
+      return '❌'
+    case 2:
+      return '🚫'
+    case 3:
+      return '⌛'
+    case 100:
+      return '⏭️'
+    case 201:
+      return '⏹️'
+    case 203:
+      return '⏸️'
+    default:
+      return '▶️'
+  }
+}
+
 export class UploadServiceHeaders {
   static token = ''
 
@@ -302,7 +330,12 @@ export async function pollPublishStatus(options: {
 }): Promise<boolean> {
   const interval = options.intervalMs ?? 5000
   const maxAttempts = options.maxAttempts ?? 240 // ~20 min at 5s
-  const seenStep: Record<string, number> = {}
+  // Per-step: log the start once, an awaiting-response pause once, and the
+  // terminal result once — instead of every status change (no spam, no flapping).
+  const stepState: Record<
+    string,
+    { started?: boolean; awaiting?: boolean; done?: boolean }
+  > = {}
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const response = await appcircleApi.get(
@@ -312,10 +345,23 @@ export async function pollPublishStatus(options: {
     const data = response.data ?? {}
     const steps = data.steps ?? []
     for (const step of steps) {
-      const key = step.id ?? step.name
-      if (key && seenStep[key] !== step.status) {
-        seenStep[key] = step.status
-        console.log(`  step '${step.name}' -> ${stepStatusName(step.status)}`)
+      const id = step.id ?? step.name
+      if (!id) continue
+      const state = (stepState[id] ??= {})
+      const status = step.status
+      if (TERMINAL_STEP_STATUSES.has(status) && !state.done) {
+        state.done = true
+        console.log(`${stepIcon(status)} ${step.name} — ${stepStatusName(status)}`)
+      } else if (status === 203 && !state.awaiting && !state.done) {
+        state.awaiting = true
+        console.log(`${stepIcon(status)} ${step.name} — ${stepStatusName(status)}`)
+      } else if (
+        ACTIVE_STEP_STATUSES.has(status) &&
+        !state.started &&
+        !state.done
+      ) {
+        state.started = true
+        console.log(`${stepIcon(status)} ${step.name} — ${stepStatusName(status)}`)
       }
     }
 
