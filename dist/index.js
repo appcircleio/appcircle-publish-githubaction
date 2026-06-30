@@ -29190,8 +29190,16 @@ exports.UploadServiceHeaders = exports.appcircleApi = void 0;
 exports.setApiEndpoint = setApiEndpoint;
 exports.getPublishProfiles = getPublishProfiles;
 exports.getPublishProfileId = getPublishProfileId;
+exports.getAppVersions = getAppVersions;
+exports.getLatestAppVersionId = getLatestAppVersionId;
+exports.getReleaseCandidateVersionId = getReleaseCandidateVersionId;
+exports.markReleaseCandidate = markReleaseCandidate;
+exports.getActivePublishCountForProfile = getActivePublishCountForProfile;
 exports.uploadPublishApp = uploadPublishApp;
 exports.checkTaskStatus = checkTaskStatus;
+exports.getPublishId = getPublishId;
+exports.startPublish = startPublish;
+exports.pollPublishStatus = pollPublishStatus;
 const axios_1 = __importDefault(__nccwpck_require__(7269));
 const fs_1 = __importDefault(__nccwpck_require__(9896));
 const form_data_1 = __importDefault(__nccwpck_require__(6454));
@@ -29229,6 +29237,25 @@ async function uploadWithRetry(doUpload, maxRetries = 5) {
         }
     }
 }
+// Human-readable names for the numeric publish flow step statuses.
+const FLOW_STEP_STATUS = {
+    0: 'Success',
+    1: 'Failed',
+    2: 'Cancelled',
+    3: 'Timeout',
+    90: 'Waiting',
+    91: 'Running',
+    92: 'Completing',
+    99: 'Unknown',
+    100: 'Skipped',
+    200: 'Not Started',
+    201: 'Stopped',
+    202: 'In Progress',
+    203: 'Awaiting Response'
+};
+function stepStatusName(status) {
+    return FLOW_STEP_STATUS[status] ?? `Unknown (${status})`;
+}
 class UploadServiceHeaders {
     static token = '';
     static getHeaders = () => {
@@ -29256,6 +29283,43 @@ async function getPublishProfileId(options) {
         throw new Error(`Publish profile '${options.publishProfileName}' not found for platform '${options.platform}'.`);
     }
     return profile.id;
+}
+async function getAppVersions(options) {
+    const response = await exports.appcircleApi.get(`publish/v2/profiles/${options.platform}/${options.publishProfileId}/app-versions`, { headers: UploadServiceHeaders.getHeaders() });
+    return Array.isArray(response.data) ? response.data : (response.data?.data ?? []);
+}
+// The most recently created app version (first item) — used after an upload to
+// identify the version that was just created.
+async function getLatestAppVersionId(options) {
+    const versions = await getAppVersions(options);
+    if (!versions.length) {
+        throw new Error('No app versions found on the publish profile after upload.');
+    }
+    return versions[0].id;
+}
+// The profile's current release candidate (publish-only mode publishes this).
+async function getReleaseCandidateVersionId(options) {
+    const versions = await getAppVersions(options);
+    const rc = versions.find((v) => v.releaseCandidate === true);
+    if (!rc) {
+        throw new Error('No release candidate app version found on the publish profile. Mark a version as release candidate (or enable upload) before publishing.');
+    }
+    return rc.id;
+}
+async function markReleaseCandidate(options) {
+    await exports.appcircleApi.patch(`publish/v2/profiles/${options.platform}/${options.publishProfileId}/app-versions/${options.appVersionId}`, { ReleaseCandidate: true }, {
+        params: { action: 'releaseCandidate' },
+        headers: UploadServiceHeaders.getHeaders()
+    });
+}
+// Number of in-progress publishes for a given profile (scope: target profile).
+async function getActivePublishCountForProfile(publishProfileId) {
+    const response = await exports.appcircleApi.get(`build/v1/queue/my-dashboard`, {
+        params: { page: 1, size: 1000 },
+        headers: UploadServiceHeaders.getHeaders()
+    });
+    const items = response.data?.data ?? [];
+    return items.filter((p) => p.publishId != null && p.profileId === publishProfileId).length;
 }
 async function uploadPublishApp(options) {
     const filePath = options.appPath;
@@ -29314,6 +29378,55 @@ async function checkTaskStatus(taskId, currentAttempt = 0) {
     }
     return true;
 }
+// Fetch the publish flow for an app version and return its run id (publishId).
+async function getPublishId(options) {
+    const response = await exports.appcircleApi.get(`publish/v2/profiles/${options.platform}/${options.publishProfileId}/app-versions/${options.appVersionId}/publish`, { headers: UploadServiceHeaders.getHeaders() });
+    const steps = response.data?.steps ?? [];
+    const publishId = steps[0]?.publishId;
+    if (!publishId) {
+        throw new Error('No publish flow steps found for the app version. Configure a publish flow on the profile first.');
+    }
+    return publishId;
+}
+async function startPublish(options) {
+    await exports.appcircleApi.post(`publish/v2/profiles/${options.platform}/${options.publishProfileId}/publish/${options.publishId}`, '{}', {
+        params: { action: 'restart' },
+        headers: {
+            ...UploadServiceHeaders.getHeaders(),
+            'Content-Type': 'application/json'
+        }
+    });
+}
+// Poll the publish status until it terminates. status: 0=success, 1=failed,
+// anything else = still running. Prints step-level progress as it advances.
+async function pollPublishStatus(options) {
+    const interval = options.intervalMs ?? 5000;
+    const maxAttempts = options.maxAttempts ?? 240; // ~20 min at 5s
+    const seenStep = {};
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        const response = await exports.appcircleApi.get(`publish/v1/profiles/${options.platform}/${options.publishProfileId}/app-versions/${options.appVersionId}/publish`, { headers: UploadServiceHeaders.getHeaders() });
+        const data = response.data ?? {};
+        const steps = data.steps ?? [];
+        for (const step of steps) {
+            const key = step.id ?? step.name;
+            if (key && seenStep[key] !== step.status) {
+                seenStep[key] = step.status;
+                console.log(`  step '${step.name}' -> ${stepStatusName(step.status)}`);
+            }
+        }
+        const status = typeof data.status === 'number' ? data.status : 99;
+        if (status === 0) {
+            console.log('Publish completed successfully.');
+            return true;
+        }
+        if (status === 1) {
+            console.log('Publish failed.');
+            return false;
+        }
+        await new Promise(resolve => setTimeout(resolve, interval));
+    }
+    throw new Error('Publish status polling timed out.');
+}
 
 
 /***/ }),
@@ -29351,6 +29464,9 @@ exports.run = run;
 const core = __importStar(__nccwpck_require__(7484));
 const authApi_1 = __nccwpck_require__(94);
 const publishApi_1 = __nccwpck_require__(2151);
+function asBool(value) {
+    return (value || 'false').toLowerCase() === 'true';
+}
 /**
  * The main function for the action.
  * @returns {Promise<void>} Resolves when the action is complete.
@@ -29363,18 +29479,34 @@ async function run() {
         const platform = core.getInput('platform')?.toLowerCase();
         const publishProfile = core.getInput('publishProfile');
         const appPath = core.getInput('appPath');
+        const upload = asBool(core.getInput('upload'));
+        const publish = asBool(core.getInput('publish'));
         (0, publishApi_1.setApiEndpoint)(apiEndpoint);
+        // --- Validation -------------------------------------------------------
+        if (!upload && !publish) {
+            core.setFailed("Nothing to do: set 'upload' and/or 'publish' to true.");
+            return;
+        }
         const validPlatforms = ['ios', 'android'];
         if (!validPlatforms.includes(platform)) {
             core.setFailed(`Invalid platform: ${platform}. Use 'ios' or 'android'.`);
             return;
         }
-        const validExtensions = ['.apk', '.aab', '.ipa'];
-        const fileExtension = appPath.slice(appPath.lastIndexOf('.')).toLowerCase();
-        if (!validExtensions.includes(fileExtension)) {
-            core.setFailed(`Invalid file extension: ${appPath}. For Android, use .apk or .aab. For iOS, use .ipa.`);
-            return;
+        if (upload) {
+            if (!appPath) {
+                core.setFailed("'appPath' is required when 'upload' is true.");
+                return;
+            }
+            const validExtensions = ['.apk', '.aab', '.ipa'];
+            const fileExtension = appPath
+                .slice(appPath.lastIndexOf('.'))
+                .toLowerCase();
+            if (!validExtensions.includes(fileExtension)) {
+                core.setFailed(`Invalid file extension: ${appPath}. For Android, use .apk or .aab. For iOS, use .ipa.`);
+                return;
+            }
         }
+        // --- Auth + profile ---------------------------------------------------
         const loginResponse = await (0, authApi_1.getToken)(personalAPIToken, authEndpoint);
         publishApi_1.UploadServiceHeaders.token = loginResponse.access_token;
         console.log('Logged in to Appcircle successfully');
@@ -29382,17 +29514,61 @@ async function run() {
             platform,
             publishProfileName: publishProfile
         });
-        const uploadResponse = await (0, publishApi_1.uploadPublishApp)({
-            platform,
-            publishProfileId,
-            appPath
-        });
-        const status = await (0, publishApi_1.checkTaskStatus)(uploadResponse.taskId);
-        if (!status) {
-            core.setFailed(`${uploadResponse.taskId} id upload request failed with status Cancelled`);
-            return;
+        // Guard: never start a new publish if one is already running for the profile.
+        if (publish) {
+            const active = await (0, publishApi_1.getActivePublishCountForProfile)(publishProfileId);
+            if (active > 0) {
+                core.setFailed(`A publish is already in progress for profile '${publishProfile}'. Not starting a new one.`);
+                return;
+            }
         }
-        console.log(`${appPath} uploaded to the Appcircle Publish profile '${publishProfile}' successfully`);
+        let appVersionId;
+        // --- Upload -----------------------------------------------------------
+        if (upload) {
+            const uploadResponse = await (0, publishApi_1.uploadPublishApp)({
+                platform,
+                publishProfileId,
+                appPath
+            });
+            const ok = await (0, publishApi_1.checkTaskStatus)(uploadResponse.taskId);
+            if (!ok) {
+                core.setFailed(`${uploadResponse.taskId} id upload request failed with status Cancelled`);
+                return;
+            }
+            appVersionId = await (0, publishApi_1.getLatestAppVersionId)({ platform, publishProfileId });
+            console.log(`${appPath} uploaded to the Appcircle Publish profile '${publishProfile}' successfully`);
+        }
+        // --- Publish ----------------------------------------------------------
+        if (publish) {
+            if (upload && appVersionId) {
+                // Both: mark the freshly uploaded version as release candidate, then publish it.
+                await (0, publishApi_1.markReleaseCandidate)({ platform, publishProfileId, appVersionId });
+                console.log('Marked the uploaded version as release candidate.');
+            }
+            else {
+                // Publish-only: publish the profile's current release candidate.
+                appVersionId = await (0, publishApi_1.getReleaseCandidateVersionId)({
+                    platform,
+                    publishProfileId
+                });
+            }
+            const publishId = await (0, publishApi_1.getPublishId)({
+                platform,
+                publishProfileId,
+                appVersionId: appVersionId
+            });
+            await (0, publishApi_1.startPublish)({ platform, publishProfileId, publishId });
+            console.log(`Publish flow started for profile '${publishProfile}'.`);
+            const success = await (0, publishApi_1.pollPublishStatus)({
+                platform,
+                publishProfileId,
+                appVersionId: appVersionId
+            });
+            if (!success) {
+                core.setFailed('Publish flow failed.');
+                return;
+            }
+        }
     }
     catch (error) {
         if (error instanceof Error) {
