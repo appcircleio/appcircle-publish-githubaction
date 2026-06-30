@@ -1,0 +1,66 @@
+name: Release
+on:
+  push:
+    branches:
+      - main
+      - 'release/**'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Build bundle (smoke test)
+        run: |
+          corepack enable
+          yarn install --frozen-lockfile
+          yarn package
+
+      - name: Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          BRANCH="${GITHUB_REF_NAME}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          STABLE="$(git tag --list 'v*' | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -1)"
+          if [ -z "$STABLE" ]; then
+            echo "::error::No stable vX.Y.Z tag found. Push the release tag (e.g. v0.4.0) first."
+            exit 1
+          fi
+          echo "Latest stable tag: $STABLE"
+
+          if [ "$BRANCH" = "main" ]; then
+            if gh release view "$STABLE" >/dev/null 2>&1; then
+              echo "Release $STABLE already exists — nothing to do."
+              exit 0
+            fi
+            echo "Production release: $STABLE"
+            gh release create "$STABLE" --title "$STABLE" --generate-notes --latest
+            MAJOR="${STABLE%%.*}"
+            git tag -f "$MAJOR" "$STABLE"
+            git push origin -f "refs/tags/$MAJOR"
+            echo "Moved major alias $MAJOR -> $STABLE"
+          elif [[ "$BRANCH" == release/* ]]; then
+            LAST="$(git tag --list "${STABLE}-beta.*" | sed -E 's/.*-beta\.([0-9]+)$/\1/' | sort -n | tail -1)"
+            N=$(( ${LAST:-0} + 1 ))
+            TAG="${STABLE}-beta.${N}"
+            echo "Beta release: $TAG (base $STABLE)"
+            git tag "$TAG"
+            git push origin "refs/tags/$TAG"
+            gh release create "$TAG" --title "$TAG" --generate-notes --prerelease
+          else
+            echo "Branch '$BRANCH' is not configured for release — skipping."
+          fi

@@ -1,0 +1,42 @@
+name: 'Appcircle Publish'
+author: 'appcircleio'
+description: 'Upload an application binary to an Appcircle Publish profile.'
+
+branding:
+  icon: 'upload-cloud'
+  color: 'orange'
+
+inputs:
+  personalAPIToken:
+    description:
+      'Provide Appcircle Personal API Token to authenticate Appcircle services.'
+    required: true
+  authEndpoint:
+    description:
+      'Optional: Authentication endpoint URL for self-hosted Appcircle
+      installations. Defaults to the Appcircle cloud.'
+    required: false
+    default: 'https://auth.appcircle.io'
+  apiEndpoint:
+    description:
+      'Optional: API endpoint URL for self-hosted Appcircle installations.
+      Defaults to the Appcircle cloud.'
+    required: false
+    default: 'https://api.appcircle.io'
+  platform:
+    description: "Target platform of the publish profile: 'ios' or 'android'."
+    required: true
+  publishProfile:
+    description:
+      'Name of the Publish profile to upload the binary to. Profile names are
+      unique per platform.'
+    required: true
+  appPath:
+    description:
+      'Specify the path to your application file. For iOS, this can be a .ipa
+      file path. For Android, specify the .apk or .aab file
+      path'
+    required: true
+runs:
+  using: 'node20'
+  main: 'dist/index.js'
