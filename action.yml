@@ -1,6 +1,8 @@
 name: 'Appcircle Publish'
 author: 'appcircleio'
-description: 'Upload an application binary to an Appcircle Publish profile.'
+description:
+  'Upload a binary to an Appcircle Publish profile and/or trigger its publish
+  flow.'
 
 branding:
   icon: 'upload-cloud'
@@ -28,15 +30,29 @@ inputs:
     required: true
   publishProfile:
     description:
-      'Name of the Publish profile to upload the binary to. Profile names are
-      unique per platform.'
+      'Name of the Publish profile to target. Profile names are unique per
+      platform.'
     required: true
+  upload:
+    description:
+      "Upload the binary at 'appPath' as a new app version on the profile.
+      Defaults to false. At least one of 'upload' or 'publish' must be true."
+    required: false
+    default: 'false'
+  publish:
+    description:
+      "Trigger the profile's publish flow. Defaults to false. When both 'upload'
+      and 'publish' are true, the freshly uploaded version is marked as release
+      candidate and published; when only 'publish' is true, the profile's
+      current release candidate is published. A new publish is never started if
+      one is already in progress for the profile."
+    required: false
+    default: 'false'
   appPath:
     description:
-      'Specify the path to your application file. For iOS, this can be a .ipa
-      file path. For Android, specify the .apk or .aab file
-      path'
-    required: true
+      "Path to the application file. Required when 'upload' is true. For iOS use
+      a .ipa file; for Android use a .apk or .aab file."
+    required: false
 runs:
   using: 'node20'
   main: 'dist/index.js'
