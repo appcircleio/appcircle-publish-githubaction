@@ -89,7 +89,7 @@ export async function uploadPublishApp(options: {
   const filePath = options.appPath
   const fileName = path.basename(filePath)
   const fileSize = fs.statSync(filePath).size
-  const basePath = `publish/v2/profiles/${options.platform}/${options.publishProfileId}/app-versions`
+  const basePath = `publish/v1/profiles/${options.platform}/${options.publishProfileId}/app-versions`
 
   // Step 1: Get upload information (size-validated, returns the upload method)
   console.log('Getting file upload information...')

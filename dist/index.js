@@ -29261,7 +29261,8 @@ async function uploadPublishApp(options) {
     const filePath = options.appPath;
     const fileName = path_1.default.basename(filePath);
     const fileSize = fs_1.default.statSync(filePath).size;
-    const basePath = `publish/v2/profiles/${options.platform}/${options.publishProfileId}/app-versions`;
+    // Profile listing is v2, but the signed-URL upload/commit actions live on v1.
+    const basePath = `publish/v1/profiles/${options.platform}/${options.publishProfileId}/app-versions`;
     // Step 1: Get upload information (size-validated, returns the upload method)
     console.log('Getting file upload information...');
     const uploadInfoResponse = await exports.appcircleApi.get(basePath, {
