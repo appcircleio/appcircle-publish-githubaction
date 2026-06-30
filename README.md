@@ -6,7 +6,7 @@ app version on the target Publish profile, ready for the profile's configured
 app store publishing flow.
 
 Learn more about
-[Appcircle Publish](https://appcircle.io/publish-mobile-app?utm_source=github&utm_medium=plugin&utm_campaign=publish).
+[Appcircle Publish](https://appcircle.io/publish-to-stores?utm_source=github&utm_medium=plugin&utm_campaign=publish).
 
 ### System Requirements
 
@@ -106,4 +106,4 @@ projects, please
 ### Reference
 
 For more detailed instructions and support, visit the
-[Appcircle Publish documentation](https://appcircle.io/publish-mobile-app?utm_source=github&utm_medium=plugin&utm_campaign=publish).
+[Appcircle Publish documentation](https://appcircle.io/publish-to-stores?utm_source=github&utm_medium=plugin&utm_campaign=publish).
