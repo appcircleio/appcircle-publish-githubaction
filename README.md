@@ -12,7 +12,7 @@ Appcircle's **Publish to Stores** module gives you:
 - **Audit and Reporting:** Track every publishing step with audit trails and publish reports for full transparency and compliance.
 
 Learn more about
-[Appcircle Publish](https://appcircle.io/publish-to-stores?utm_source=github&utm_medium=plugin&utm_campaign=publish).
+[Appcircle Publish to Stores](https://appcircle.io/publish-to-stores?utm_source=github&utm_medium=plugin&utm_campaign=publish).
 
 ### System Requirements
 
@@ -31,9 +31,9 @@ endpoints.
 
 To generate a Personal API Token:
 
-1. Go to the My Organization screen (second option at the bottom left).
-2. Find the Personal API Token section in the top right corner.
-3. Press the "Generate Token" button to generate your first token.
+1. Open the **My Organization** screen from your profile avatar at the bottom left.
+2. Go to the **Security** section and find the **Personal Access Key** card.
+3. Press **Generate Key** to generate your token.
 
 ![Token Generation](images/PAT.png)
 
@@ -169,4 +169,4 @@ projects, please
 ### Reference
 
 For more detailed instructions and support, visit the
-[Appcircle Publish documentation](https://docs.appcircle.io/publish-to-stores-module?utm_source=github&utm_medium=plugin&utm_campaign=publish).
+[Appcircle Publish to Stores documentation](https://docs.appcircle.io/marketplace/github-marketplace/publish-to-stores?utm_source=github&utm_medium=plugin&utm_campaign=publish).
