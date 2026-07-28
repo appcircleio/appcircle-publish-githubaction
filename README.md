@@ -3,8 +3,16 @@
 Upload an application binary to an Appcircle **Publish** profile and/or trigger
 its publish flow (app store publishing) directly from your GitHub workflow.
 
+Appcircle's **Publish to Stores** module gives you:
+
+- **Centralized Store Publishing:** Manage App Store, Google Play, Huawei AppGallery, and Microsoft Intune releases from a single hub instead of navigating each platform separately.
+- **Custom Publish Flows:** Automate your release cycle with repeatable publish flows and ready-to-use integrations tailored to your organization's needs.
+- **Approval Gates:** Add manual approval steps to your publish flow to keep every release under control before it goes live.
+- **Auto Re-sign:** Automatically apply updated signing credentials and versioning to uploaded binaries, keeping releases properly signed without a new build.
+- **Audit and Reporting:** Track every publishing step with audit trails and publish reports for full transparency and compliance.
+
 Learn more about
-[Appcircle Publish](https://appcircle.io/publish-to-stores?utm_source=github&utm_medium=plugin&utm_campaign=publish).
+[Appcircle Publish to Stores](https://appcircle.io/publish-to-stores?utm_source=github&utm_medium=plugin&utm_campaign=publish).
 
 ### System Requirements
 
@@ -23,15 +31,15 @@ endpoints.
 
 To generate a Personal API Token:
 
-1. Go to the My Organization screen (second option at the bottom left).
-2. Find the Personal API Token section in the top right corner.
-3. Press the "Generate Token" button to generate your first token.
+1. Open the **My Organization** screen from your profile avatar at the bottom left.
+2. Go to the **Security** section and find the **Personal Access Key** card.
+3. Press **Generate Key** to generate your token.
 
 ![Token Generation](images/PAT.png)
 
 ## What the action does
 
-The action has two independent switches — `upload` and `publish` — both default
+The action has two independent switches (`upload` and `publish`), both default
 to `false`. **You must enable at least one.** Create the Publish profile in
 Appcircle first; the action targets it by name (profile names are unique per
 platform).
@@ -41,7 +49,7 @@ platform).
 | `true`  | `false` | Upload `appPath` as a new app version on the profile. |
 | `false` | `true`  | Trigger the publish flow for the profile's **current release candidate**. |
 | `true`  | `true`  | Upload `appPath`, **mark the new version as release candidate**, then trigger the publish flow for it. |
-| `false` | `false` | Error — nothing to do. |
+| `false` | `false` | Error: nothing to do. |
 
 **Rules:**
 
@@ -104,7 +112,7 @@ platform).
 
 - `personalAPIToken` (required): Appcircle Personal API Token used to
   authenticate and secure access to Appcircle services.
-- `platform` (required): Target platform of the Publish profile — `ios` or
+- `platform` (required): Target platform of the Publish profile: `ios` or
   `android`.
 - `publishProfile` (required): Name of the Publish profile to target. Resolved to
   the profile for the selected platform.
@@ -112,7 +120,7 @@ platform).
 - `publish` (optional, default `false`): Trigger the profile's publish flow.
 - `appPath` (required when `upload` is `true`): Path to the application file. For
   iOS use a `.ipa` file; for Android use a `.apk` or `.aab` file.
-- `authEndpoint` / `apiEndpoint` (optional): self-hosted endpoints — see below.
+- `authEndpoint` / `apiEndpoint` (optional): self-hosted endpoints, see below.
 
 ### Self-Hosted Appcircle
 
@@ -142,7 +150,7 @@ change.
 > **Self-signed or private CA certificates:** If your self-hosted Appcircle server
 > uses a self-signed certificate (or one issued by a private/internal CA), requests
 > will fail certificate validation. The action does not disable TLS verification.
-> Trust the server's CA on the runner — set the `NODE_EXTRA_CA_CERTS` environment
+> Trust the server's CA on the runner: set the `NODE_EXTRA_CA_CERTS` environment
 > variable to a PEM file containing the CA certificate, or add the CA to the system
 > certificate store.
 
@@ -161,4 +169,4 @@ projects, please
 ### Reference
 
 For more detailed instructions and support, visit the
-[Appcircle Publish documentation](https://appcircle.io/publish-to-stores?utm_source=github&utm_medium=plugin&utm_campaign=publish).
+[Appcircle Publish to Stores documentation](https://docs.appcircle.io/marketplace/github-marketplace/publish-to-stores?utm_source=github&utm_medium=plugin&utm_campaign=publish).
