@@ -120,7 +120,37 @@ platform).
 - `publish` (optional, default `false`): Trigger the profile's publish flow.
 - `appPath` (required when `upload` is `true`): Path to the application file. For
   iOS use a `.ipa` file; for Android use a `.apk` or `.aab` file.
+- `subOrganizationName` (optional): sub-organization to target with a root
+  organization token, see below.
 - `authEndpoint` / `apiEndpoint` (optional): self-hosted endpoints, see below.
+
+### Sub-Organizations
+
+If your Personal API Token belongs to the root organization but the target
+publish profile lives in a sub-organization, set the optional
+`subOrganizationName` input. The action re-authenticates the same token against
+that sub-organization and runs every subsequent call there, so the profile is
+resolved in the sub-organization instead of the root organization.
+
+```yml
+- name: Upload and Publish to Appcircle
+  uses: appcircleio/appcircle-publish-githubaction
+  with:
+    personalAPIToken: ${{ secrets.AC_PERSONAL_API_TOKEN }}
+    subOrganizationName: YOUR_SUB_ORGANIZATION_NAME
+    platform: android
+    publishProfile: PUBLISH_PROFILE_NAME
+    upload: 'true'
+    publish: 'true'
+    appPath: ./app.aab
+```
+
+- `subOrganizationName`: Name of the sub-organization to target. Optional;
+  defaults to the root organization. The name must match exactly and the token
+  must have access to that sub-organization, otherwise the action fails instead
+  of falling back to the root organization.
+  It works the same way against a self-hosted installation; combine it with the
+  `authEndpoint` and `apiEndpoint` inputs described below.
 
 ### Self-Hosted Appcircle
 

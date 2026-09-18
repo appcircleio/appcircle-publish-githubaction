@@ -33031,11 +33031,15 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.getToken = getToken;
 const axios_1 = __importDefault(__nccwpck_require__(7269));
-async function getToken(pat, authEndpoint = 'https://auth.appcircle.io') {
+async function getToken(pat, authEndpoint = 'https://auth.appcircle.io', subOrganizationId) {
     const params = new URLSearchParams();
     params.append('pat', pat);
+    const tokenPath = subOrganizationId ? '/auth/v2/token' : '/auth/v1/token';
+    if (subOrganizationId) {
+        params.append('subOrganizationId', subOrganizationId);
+    }
     const authHostname = authEndpoint.replace(/\/+$/, '');
-    const response = await axios_1.default.post(`${authHostname}/auth/v1/token`, params.toString(), {
+    const response = await axios_1.default.post(`${authHostname}${tokenPath}`, params.toString(), {
         headers: {
             accept: 'application/json',
             'content-type': 'application/x-www-form-urlencoded'
@@ -33058,6 +33062,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.UploadServiceHeaders = exports.appcircleApi = void 0;
 exports.setApiEndpoint = setApiEndpoint;
+exports.getOrganizationId = getOrganizationId;
 exports.getPublishProfiles = getPublishProfiles;
 exports.getPublishProfileId = getPublishProfileId;
 exports.getAppVersions = getAppVersions;
@@ -33164,6 +33169,18 @@ class UploadServiceHeaders {
     };
 }
 exports.UploadServiceHeaders = UploadServiceHeaders;
+async function getOrganizationId(name) {
+    const response = await exports.appcircleApi.get('identity/v1/organizations', {
+        params: { page: 1, perPage: 1000 },
+        headers: UploadServiceHeaders.getHeaders()
+    });
+    const organizations = response.data?.data ?? [];
+    const organization = organizations.find(org => org.name === name);
+    if (!organization?.id) {
+        throw new Error(`Sub-organization '${name}' could not be found or is not accessible with this token.`);
+    }
+    return organization.id;
+}
 async function getPublishProfiles(platform) {
     const response = await exports.appcircleApi.get(`publish/v2/profiles/${platform}`, {
         headers: UploadServiceHeaders.getHeaders()
@@ -33393,6 +33410,7 @@ async function run() {
         const appPath = core.getInput('appPath');
         const upload = asBool(core.getInput('upload'));
         const publish = asBool(core.getInput('publish'));
+        const subOrganizationName = core.getInput('subOrganizationName');
         (0, publishApi_1.setApiEndpoint)(apiEndpoint);
         // --- Validation -------------------------------------------------------
         if (!upload && !publish) {
@@ -33422,6 +33440,23 @@ async function run() {
         const loginResponse = await (0, authApi_1.getToken)(personalAPIToken, authEndpoint);
         publishApi_1.UploadServiceHeaders.token = loginResponse.access_token;
         console.log('Logged in to Appcircle successfully');
+        if (subOrganizationName) {
+            const subOrganizationId = await (0, publishApi_1.getOrganizationId)(subOrganizationName);
+            let subLoginResponse;
+            try {
+                subLoginResponse = await (0, authApi_1.getToken)(personalAPIToken, authEndpoint, subOrganizationId);
+            }
+            catch (error) {
+                const status = error?.response?.status;
+                throw new Error(`Could not authenticate against sub-organization '${subOrganizationName}'` +
+                    `${status ? ` (HTTP ${status})` : ''}: ${error?.message}`);
+            }
+            if (!subLoginResponse?.access_token) {
+                throw new Error(`Could not obtain an access token for sub-organization '${subOrganizationName}'.`);
+            }
+            publishApi_1.UploadServiceHeaders.token = subLoginResponse.access_token;
+            console.log(`Switched to sub-organization: ${subOrganizationName}`);
+        }
         const publishProfileId = await (0, publishApi_1.getPublishProfileId)({
             platform,
             publishProfileName: publishProfile

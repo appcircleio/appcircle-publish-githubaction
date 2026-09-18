@@ -25,6 +25,13 @@ inputs:
       Defaults to the Appcircle cloud.'
     required: false
     default: 'https://api.appcircle.io'
+  subOrganizationName:
+    description:
+      'Optional: Sub-organization name to target. Leave empty to use the root
+      organization. Use this when your Personal API Token belongs to the root
+      organization but the target publish profile lives in a sub-organization.'
+    required: false
+    default: ''
   platform:
     description: "Target platform of the publish profile: 'ios' or 'android'."
     required: true
