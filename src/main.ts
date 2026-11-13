@@ -127,13 +127,7 @@ export async function run(): Promise<void> {
         publishProfileId,
         appPath
       })
-      const ok = await checkTaskStatus(uploadResponse.taskId)
-      if (!ok) {
-        core.setFailed(
-          `${uploadResponse.taskId} id upload request failed with status Cancelled`
-        )
-        return
-      }
+      await checkTaskStatus(uploadResponse.taskId)
       appVersionId = await getLatestAppVersionId({ platform, publishProfileId })
       console.log(
         `${appPath} uploaded to the Appcircle Publish profile '${publishProfile}' successfully`

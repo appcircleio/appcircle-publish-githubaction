@@ -2,6 +2,12 @@ import axios, { AxiosRequestConfig } from 'axios'
 import fs from 'fs'
 import FormData from 'form-data'
 import path from 'path'
+import {
+  TASK_REQUEST_TIMEOUT_MS,
+  TaskPollOptions,
+  TaskStatusReply,
+  waitForTaskCompletion
+} from './taskStatus'
 
 let apiHostname = 'https://api.appcircle.io'
 export const appcircleApi = axios.create({
@@ -280,21 +286,38 @@ export async function uploadPublishApp(options: {
   return commitResponse.data
 }
 
-export async function checkTaskStatus(taskId: string, currentAttempt = 0) {
-  const response = await appcircleApi.get(`/task/v1/tasks/${taskId}`, {
-    headers: UploadServiceHeaders.getHeaders()
-  })
-
-  if (response?.data.stateValue == 1 && currentAttempt < 100) {
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    return checkTaskStatus(taskId, currentAttempt + 1)
+async function readTaskStatus(
+  taskId: string,
+  timeoutMs: number
+): Promise<TaskStatusReply> {
+  try {
+    const url = `/task/v1/tasks/${encodeURIComponent(taskId)}`
+    const response = await appcircleApi.get(url, {
+      headers: UploadServiceHeaders.getHeaders(),
+      timeout: timeoutMs,
+      validateStatus: () => true
+    })
+    const body =
+      response.data && typeof response.data === 'object'
+        ? response.data
+        : undefined
+    return { httpStatus: response.status, body }
+  } catch {
+    return { httpStatus: 0 }
   }
+}
 
-  if (response.data.stateValue === 2) {
-    return false
-  }
-
-  return true
+export async function checkTaskStatus(
+  taskId: string,
+  options?: TaskPollOptions
+): Promise<void> {
+  await waitForTaskCompletion(
+    taskId,
+    id =>
+      readTaskStatus(id, options?.requestTimeoutMs ?? TASK_REQUEST_TIMEOUT_MS),
+    id => `${id} id upload request failed with status Cancelled`,
+    options
+  )
 }
 
 // Fetch the publish flow for an app version and return its run id (publishId).
