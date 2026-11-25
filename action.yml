@@ -16,13 +16,15 @@ inputs:
   authEndpoint:
     description:
       'Optional: Authentication endpoint URL for self-hosted Appcircle
-      installations. Defaults to the Appcircle cloud.'
+      installations. Defaults to the Appcircle cloud. Set both authEndpoint and
+      apiEndpoint for a self-hosted server, or leave both empty.'
     required: false
     default: 'https://auth.appcircle.io'
   apiEndpoint:
     description:
       'Optional: API endpoint URL for self-hosted Appcircle installations.
-      Defaults to the Appcircle cloud.'
+      Defaults to the Appcircle cloud. Set both authEndpoint and apiEndpoint for
+      a self-hosted server, or leave both empty.'
     required: false
     default: 'https://api.appcircle.io'
   subOrganizationName:
