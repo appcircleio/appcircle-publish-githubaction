@@ -176,6 +176,9 @@ change.
   Optional; defaults to `https://auth.appcircle.io`.
 - `apiEndpoint`: Base URL of the self-hosted Appcircle API server. Optional;
   defaults to `https://api.appcircle.io`.
+- Set `authEndpoint` and `apiEndpoint` together. If you set only one of them,
+  the step stops before it sends a request, so a self-hosted token never goes to
+  the Appcircle cloud.
 
 > **Self-signed or private CA certificates:** If your self-hosted Appcircle server
 > uses a self-signed certificate (or one issued by a private/internal CA), requests

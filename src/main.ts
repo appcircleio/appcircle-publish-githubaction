@@ -1,6 +1,6 @@
 import * as core from '@actions/core'
 
-import { getToken } from './api/authApi'
+import { getToken, validateEndpoints } from './api/authApi'
 import {
   checkTaskStatus,
   getActivePublishCountForProfile,
@@ -39,6 +39,7 @@ export async function run(): Promise<void> {
     const publish = asBool(core.getInput('publish'))
     const subOrganizationName = core.getInput('subOrganizationName')
 
+    validateEndpoints(authEndpoint, apiEndpoint)
     setApiEndpoint(apiEndpoint)
 
     // --- Validation -------------------------------------------------------
